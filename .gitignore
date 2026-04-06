@@ -1,0 +1,19 @@
+node_modules/
+npm-debug.log
+
+# Frontend build
+dist/
+frontend/dist/
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Uploads
+uploads/
+backend/uploads/
+
+# OS generated files
+.DS_Store
+Thumbs.db
