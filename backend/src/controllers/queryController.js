@@ -1,13 +1,23 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Initialize Gemini Configuration
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 const handleQuery = async (req, res) => {
   const { query, data } = req.body;
 
+  // 1. Validate Input
   if (!query) {
     return res.status(400).json({ error: 'Query is required.' });
+  }
+
+  // 2. Validate API Key
+  if (!process.env.GEMINI_API_KEY) {
+    console.error("CRITICAL: GEMINI_API_KEY is missing from environment variables.");
+    return res.status(500).json({ 
+      error: "Backend Configuration Error.", 
+      details: "GEMINI_API_KEY is not set on the server. Please check environment variables." 
+    });
   }
 
   try {
@@ -43,6 +53,11 @@ If a chart is not needed, set needsChart to false and chartConfig to null. Do NO
 
     const response = await result.response;
     const aiText = response.text();
+    
+    if (!aiText) {
+      throw new Error("Empty response from Gemini AI.");
+    }
+
     const aiResponse = JSON.parse(aiText);
 
     res.status(200).json({
@@ -52,9 +67,11 @@ If a chart is not needed, set needsChart to false and chartConfig to null. Do NO
     
   } catch (error) {
     console.error("Gemini Error:", error);
+    
+    // Return specific error details to help with debugging
     res.status(500).json({ 
-      error: "Failed to communicate with AI.",
-      details: error.message
+      error: "AI Communication Failed",
+      details: error.message || "An unexpected error occurred while communicating with the AI core."
     });
   }
 };

@@ -69,11 +69,15 @@ const ChatBox = ({ csvData }) => {
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
       console.error("Chat error:", error);
+      
+      const serverErrorMessage = error.response?.data?.error || "System Error";
+      const serverDetails = error.response?.data?.details || "Unable to query Nexus core. Please check your connection or datasets.";
+
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         role: 'bot',
         isError: true,
-        text: "System Error: Unable to query Nexus core. Please check your connection or datasets.",
+        text: `${serverErrorMessage}: ${serverDetails}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages((prev) => [...prev, errorMessage]);
