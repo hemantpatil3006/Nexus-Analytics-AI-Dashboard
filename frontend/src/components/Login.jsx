@@ -16,7 +16,8 @@ const Login = ({ setAuthToken }) => {
     const endpoint = isRegistering ? '/api/auth/register' : '/api/auth/login';
 
     try {
-      const response = await axios.post(`http://localhost:5000${endpoint}`, formData);
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await axios.post(`${apiBase}${endpoint}`, formData);
       const { token } = response.data;
       localStorage.setItem('jwtToken', token);
       setAuthToken(token);

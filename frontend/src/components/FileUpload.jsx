@@ -26,7 +26,8 @@ const FileUpload = ({ onDataReceived }) => {
     formData.append('file', file);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/upload', formData, {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await axios.post(`${apiBase}/api/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`
