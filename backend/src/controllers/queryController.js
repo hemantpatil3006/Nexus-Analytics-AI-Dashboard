@@ -1,77 +1,73 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-// Initialize Gemini Configuration
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
 const handleQuery = async (req, res) => {
   const { query, data } = req.body;
 
-  // 1. Validate Input
   if (!query) {
     return res.status(400).json({ error: 'Query is required.' });
   }
 
-  // 2. Validate API Key
-  if (!process.env.GEMINI_API_KEY) {
-    console.error("CRITICAL: GEMINI_API_KEY is missing from environment variables.");
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey || apiKey === 'your_openrouter_api_key_here') {
     return res.status(500).json({ 
-      error: "Backend Configuration Error.", 
-      details: "GEMINI_API_KEY is not set on the server. Please check environment variables." 
+      error: "OpenRouter Key Missing", 
+      details: "Please add your OPENROUTER_API_KEY to the backend .env file." 
     });
   }
 
   try {
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
-      generationConfig: {
-        responseMimeType: 'application/json'
-      }
-    });
-
     const systemPrompt = `You are an expert Data Analyst. 
-The user will ask statistical or data-related questions regarding a specific dataset. 
-Analyze the context of their query against the provided dataset and respond intelligently.
-Here is the JSON dataset you must perform your analysis on:
-${JSON.stringify(data)}
+Analyze the provided JSON dataset and respond to the user's query.
+Dataset: ${JSON.stringify(data)}
 
-You MUST output your answer strictly as a JSON object with the following schema:
+You MUST respond strictly with a JSON object in this format:
 {
-  "insight": "Clear, concise, highly professional text summary answering the query.",
-  "needsChart": true or false (evaluate if this data is best visualized, e.g., trends, comparisons, proportions),
+  "insight": "Clear summary text",
+  "needsChart": true/false,
   "chartConfig": {
     "type": "bar" | "line" | "pie",
-    "xAxisKey": "string (the key for the X axis, e.g., name, month)",
-    "dataKey": "string (the primary numeric key for the Y axis, e.g., age, sales)",
-    "data": [ { "xAxisKey": "value", "dataKey": 123 } ] (the mathematically filtered/sorted array of data to render)
+    "xAxisKey": "string",
+    "dataKey": "string",
+    "data": [ { "xAxisKey": "value", "dataKey": 123 } ]
   }
 }
-If a chart is not needed, set needsChart to false and chartConfig to null. Do NOT return markdown, only raw JSON.`;
+If no chart is needed, set needsChart to false and chartConfig to null.`;
 
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nUser Question: ${query}` }] }],
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": `https://nexus-ai-analytics-dashboard.netlify.app/`,
+        "X-Title": `Nexus AI Dashboard`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        "model": "openai/gpt-3.5-turbo",
+        "messages": [
+          { "role": "system", "content": systemPrompt },
+          { "role": "user", "content": query }
+        ],
+        "response_format": { "type": "json_object" }
+      })
     });
 
-    const response = await result.response;
-    const aiText = response.text();
+    const result = await response.json();
     
-    if (!aiText) {
-      throw new Error("Empty response from Gemini AI.");
+    if (result.error) {
+        throw new Error(result.error.message || "OpenRouter API Error");
     }
 
-    const aiResponse = JSON.parse(aiText);
+    const aiMessage = JSON.parse(result.choices[0].message.content);
 
     res.status(200).json({
-      message: aiResponse,
-      timestamp: new Date().toISOString()
+      message: aiMessage,
+      timestamp: new Date().toISOString(),
+      provider: "OpenRouter"
     });
     
   } catch (error) {
-    console.error("Gemini Error:", error);
-    
-    // Return specific error details to help with debugging
+    console.error(`OpenRouter Error:`, error.message);
     res.status(500).json({ 
-      error: "AI Communication Failed",
-      details: error.message || "An unexpected error occurred while communicating with the AI core."
+      error: "AI Integration Error",
+      details: error.message 
     });
   }
 };

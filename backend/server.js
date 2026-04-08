@@ -1,10 +1,15 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const queryRoutes = require('./src/routes/queryRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const { protect } = require('./src/middlewares/authMiddleware');
+const connectDB = require('./src/config/db');
+
+// Connect to Database
+connectDB();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

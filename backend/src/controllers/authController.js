@@ -1,9 +1,6 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-
-// DUMMY DATABASE FOR SPRINT 5
-// (In Sprint 6 we could replace this with PostgreSQL/MongoDB)
-const users = []; 
+const User = require('../models/User');
 
 // Generate JWT Helper
 const generateToken = (id) => {
@@ -19,49 +16,55 @@ const registerUser = async (req, res) => {
     return res.status(400).json({ error: 'Please add all fields' });
   }
 
-  // Check if user exists
-  const userExists = users.find((u) => u.username === username);
-  if (userExists) {
-    return res.status(400).json({ error: 'User already exists' });
-  }
+  try {
+    // Check if user exists in MongoDB
+    const userExists = await User.findOne({ username });
+    if (userExists) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
 
-  // Hash password securely
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-  // Store in memory
-  const user = {
-    id: users.length + 1,
-    username,
-    password: hashedPassword,
-  };
-  users.push(user);
-
-  if (user) {
-    res.status(201).json({
-      _id: user.id,
-      username: user.username,
-      token: generateToken(user.id),
+    // Create user in MongoDB
+    const user = await User.create({
+      username,
+      password: hashedPassword,
     });
-  } else {
-    res.status(400).json({ error: 'Invalid user data' });
+
+    if (user) {
+      res.status(201).json({
+        _id: user._id,
+        username: user.username,
+        token: generateToken(user._id),
+      });
+    } else {
+      res.status(400).json({ error: 'Invalid user data' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
 const loginUser = async (req, res) => {
   const { username, password } = req.body;
 
-  // Check for user
-  const user = users.find((u) => u.username === username);
+  try {
+    // Find user in MongoDB
+    const user = await User.findOne({ username });
 
-  if (user && (await bcrypt.compare(password, user.password))) {
-    res.json({
-      _id: user.id,
-      username: user.username,
-      token: generateToken(user.id),
-    });
-  } else {
-    res.status(401).json({ error: 'Invalid credentials' });
+    if (user && (await bcrypt.compare(password, user.password))) {
+      res.json({
+        _id: user._id,
+        username: user.username,
+        token: generateToken(user._id),
+      });
+    } else {
+      res.status(401).json({ error: 'Invalid credentials' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
